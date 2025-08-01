@@ -1,0 +1,50 @@
+name: Deploy to ECS FARGATE_SPOT
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: 607700977843.dkr.ecr.us-east-2.amazonaws.com/strapi-ecr-prod
+  IMAGE_TAG: latest
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::607700977843:role/GitHubOIDCRole  # Replace with your actual IAM role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply (no plan)
+        run: terraform apply -auto-approve
