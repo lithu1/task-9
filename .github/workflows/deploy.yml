@@ -1,41 +1,19 @@
-name: Deploy to ECS FARGATE_SPOT
+name: Deploy to ECS
 
 on:
   push:
-    branches:
-      - main
-
-env:
-  AWS_REGION: us-east-2
-  ECR_REPOSITORY: 607700977843.dkr.ecr.us-east-2.amazonaws.com/strapi-ecr-prod
-  IMAGE_TAG: latest
+    branches: [main]
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Deploy to AWS ECS via Terraform
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (Access Keys)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build Docker image
-        run: |
-          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Setup Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.3
@@ -43,5 +21,8 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply (no plan)
+      - name: Terraform Apply
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terraform apply -auto-approve
